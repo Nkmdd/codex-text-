@@ -1,0 +1,23 @@
+name: beauty-factory-tests
+on:
+  push:
+    paths: ['beauty-content-factory/**', '.github/workflows/beauty-check.yml']
+  pull_request:
+    paths: ['beauty-content-factory/**', '.github/workflows/beauty-check.yml']
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+          pip install -r beauty-content-factory/requirements.txt pytest
+      - name: Check modules and render
+        working-directory: beauty-content-factory
+        run: |
+          python -m compileall -q app
+          pytest -q

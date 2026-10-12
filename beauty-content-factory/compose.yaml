@@ -1,0 +1,52 @@
+name: beauty-content-factory
+x-common: &common
+  build: .
+  env_file:
+    - .env
+  volumes:
+    - factory_data:/data
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 256
+  mem_limit: 2800m
+
+services:
+  web:
+    <<: *common
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  worker:
+    <<: *common
+    command: ["python", "-m", "app.worker"]
+    mem_limit: 3200m
+    cpus: 1.9
+  bot:
+    <<: *common
+    profiles: ["bot"]
+    command: ["python", "-m", "app.bot"]
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["public"]
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  factory_data:
+  caddy_data:
+  caddy_config:

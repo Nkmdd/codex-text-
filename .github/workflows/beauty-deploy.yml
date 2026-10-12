@@ -1,0 +1,34 @@
+name: deploy-selectel-beauty-factory
+on:
+  push:
+    branches: [main]
+    paths: ['beauty-content-factory/**']
+  workflow_dispatch:
+jobs:
+  deploy:
+    if: ${{ vars.ENABLE_SELECTEL_DEPLOY == 'true' }}
+    runs-on: ubuntu-24.04
+    concurrency: selectel-beauty-factory
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SELECTEL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SELECTEL_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload and deploy code (never overwrite .env)
+        env:
+          HOST: ${{ secrets.SELECTEL_HOST }}
+          USER: ${{ secrets.SELECTEL_USER }}
+        run: |
+          set -euo pipefail
+          tar -czf /tmp/beauty-content-factory.tar.gz -C beauty-content-factory --exclude='.env' .
+          scp -o StrictHostKeyChecking=yes /tmp/beauty-content-factory.tar.gz "$USER@$HOST:/tmp/beauty-content-factory.tar.gz"
+          ssh -o StrictHostKeyChecking=yes "$USER@$HOST" \
+            'sudo mkdir -p /opt/beauty-content-factory && sudo tar -xzf /tmp/beauty-content-factory.tar.gz -C /opt/beauty-content-factory && cd /opt/beauty-content-factory && sudo bash deploy.sh'
