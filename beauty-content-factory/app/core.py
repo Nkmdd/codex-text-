@@ -1,9 +1,10 @@
 import json
 import os
 import re
+import shutil
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 DATA = Path(os.getenv('DATA_DIR', '/data'))
@@ -86,3 +87,20 @@ def finish_job(job_id, *, output=None, error=None):
         c.execute('UPDATE jobs SET status=?,updated_at=?,output=?,error=? WHERE id=?',
                   ('failed' if error else 'done', now(), str(output) if output else None,
                    str(error)[:1500] if error else None, job_id))
+
+
+def recover_interrupted_jobs():
+    """Requeue jobs interrupted when the worker/server was restarted."""
+    with db() as c:
+        c.execute("UPDATE jobs SET status='queued',updated_at=? WHERE status='running'", (now(),))
+
+
+def clean_old_jobs(days=7):
+    """Delete completed/failed source media after retention window; keep audit metadata."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    with db() as c:
+        rows = c.execute("SELECT id FROM jobs WHERE status IN ('done','failed') AND updated_at < ?", (cutoff,)).fetchall()
+        for row in rows:
+            shutil.rmtree(DATA / 'jobs' / row['id'], ignore_errors=True)
+            c.execute("UPDATE jobs SET status='expired',output=NULL,music=NULL,sources='[]' WHERE id=?", (row['id'],))
+    return len(rows)
