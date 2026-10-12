@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 import httpx
-from app.core import init_db, claim_job, finish_job
+from app.core import init_db, claim_job, finish_job, recover_interrupted_jobs, clean_old_jobs
 from app.render import render
 
 logging.basicConfig(level=logging.INFO)
@@ -31,8 +31,17 @@ def notify(job, message, video=None):
 
 def main():
     init_db()
+    recover_interrupted_jobs()
     log.info('Worker online')
+    next_clean = 0
     while True:
+        if time.time() >= next_clean:
+            try:
+                deleted = clean_old_jobs()
+                if deleted: log.info('Expired %s old jobs',deleted)
+            except Exception as e:
+                log.warning('Retention cleanup failed: %s',e)
+            next_clean = time.time() + 3600
         job = claim_job()
         if not job:
             time.sleep(2)
