@@ -13,7 +13,7 @@
 - **Not AI:** does not yet transcribe speech, automatically pick best semantic moments, remove pauses, add auto captions, score or rewrite reels. These are later additions.
 - Telegram Bot API remote file downloads normally limited to 20 MB; large camera clips should go through the **mobile web upload**. For Telegram-delivered outputs over ~45 MB the bot sends a notice instead; use web workflow.
 - 1080x1920 CPU encoding can be slow with a 2-core server. One render worker avoids overload; encoding time varies with clips.
-- Uploaded video remains on server until explicitly removed; define retention policy and periodic cleanup before wider release. No public signup. Never use copyrighted music without permission.
+- Uploaded source videos and renders are automatically deleted after 7 days once a job completes or fails; job metadata remains. No public signup. Never use copyrighted music without permission.
 
 ## Install on existing Selectel Nina Ubuntu 24.04
 
